@@ -14,6 +14,7 @@ using namespace std;
 const string not_exist_config_file = "./tests/redis_multi_db_ut_config/database_config_not_exist.json";
 const string config_file = "./tests/redis_multi_db_ut_config/database_config.json";
 const string global_config_file = "./tests/redis_multi_db_ut_config/database_global.json";
+const string dpu_config_file = "./tests/redis_multi_db_ut_config/database_config5.json";
 
 int sonic_db_cli(int argc, char** argv)
 {
@@ -25,8 +26,12 @@ int sonic_db_cli(int argc, char** argv)
         }
     };
 
-    auto initializeConfig = []()
+    auto initializeConfig = [](const string& dpu_name = "")
     {
+        if (!dpu_name.empty()){
+            SonicDBConfig::initialize(dpu_config_file);
+        }
+
         if (!SonicDBConfig::isInit())
         {
             SonicDBConfig::initialize(config_file);
@@ -292,7 +297,7 @@ TEST(sonic_db_cli, test_cli_ping_cmd_no_config)
         SonicDBConfig::initializeGlobalConfig(not_exist_config_file);
     };
 
-    auto initializeConfig = []()
+    auto initializeConfig = [](const string& dpu_name = "")
     {
         SonicDBConfig::initialize(not_exist_config_file);
     };
@@ -509,6 +514,34 @@ TEST(sonic_db_cli, test_parallel_cmd) {
     EXPECT_TRUE(parallen_time < sequential_time);
 }
 
+TEST(sonic_db_cli, test_cli_run_dpu_cmd)
+{
+    char *args[5];
+    args[0] = "sonic-db-cli";
+    args[1] = "-d";
+    args[2] = "dpu0";
+    args[1] = "DPU_APPL_STATE_DB";
+    
+    // set key to test DB
+    args[2] = "SET";
+    args[3] = "testkey";
+    args[4] = "testvalue";
+    auto output = runCli(5, args);
+    EXPECT_EQ("True\n", output);
+    
+    // get key from test db
+    args[2] = "GET";
+    args[3] = "testkey";
+    output = runCli(4, args);
+    EXPECT_EQ("testvalue\n", output);
+    
+    // get keys from test db
+    args[2] = "keys";
+    args[3] = "*";
+    output = runCli(4, args);
+    EXPECT_EQ("testkey\n", output);
+}
+
 TEST(sonic_db_cli, test_cli_not_throw_exception)
 {
     char *args[5];
@@ -526,7 +559,7 @@ TEST(sonic_db_cli, test_cli_not_throw_exception)
         throw std::system_error();
     };
 
-    auto initializeConfig = []()
+    auto initializeConfig = [](const string& dpu_name = "")
     {
         throw std::system_error();
     };
