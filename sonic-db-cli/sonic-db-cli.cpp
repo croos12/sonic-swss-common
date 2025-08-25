@@ -12,7 +12,7 @@ using namespace std;
 
 void printUsage()
 {
-    cout << "usage: sonic-db-cli [-h] [-s] [-n NAMESPACE] db_or_op [cmd [cmd ...]]" << endl;
+    cout << "usage: sonic-db-cli [-h] [-s] [-n NAMESPACE] [-d DPU_NAME] db_or_op [cmd [cmd ...]]" << endl;
     cout << endl;
     cout << "SONiC DB CLI:" << endl;
     cout << endl;
@@ -25,6 +25,8 @@ void printUsage()
     cout << "  -s, --unixsocket      Override use of tcp_port and use unixsocket" << endl;
     cout << "  -n NAMESPACE, --namespace NAMESPACE" << endl;
     cout << "                        Namespace string to use asic0/asic1.../asicn" << endl;
+    cout << "  -d DPU, --dpu DPU" << endl;
+    cout << "                        DPU name for accessing DPU database instead of default dpu0/dpu1.../dpu3" << endl;
     cout << endl;
     cout << "**sudo** needed for commands accesing a different namespace [-n], or using unixsocket connection [-s]" << endl;
     cout << endl;
@@ -116,7 +118,7 @@ int handleAllInstances(
     {
         return 1;
     }
-    
+
     if (operation == "PING")
     {
         cout << "PONG" << endl;
@@ -186,11 +188,12 @@ void parseCliArguments(
     Options &options)
 {
     // Parse argument with getopt https://man7.org/linux/man-pages/man3/getopt.3.html
-    const char* short_options = "hsn";
+    const char* short_options = "hsnd";
     static struct option long_options[] = {
        {"help",        optional_argument, NULL,  'h' },
        {"unixsocket",  optional_argument, NULL,  's' },
        {"namespace",   optional_argument, NULL,  'n' },
+       {"dpu",    optional_argument, NULL,  'd' },
        // The last element of the array has to be filled with zeros.
        {0,          0,       0,  0 }
     };
@@ -223,6 +226,18 @@ void parseCliArguments(
                     }
                     break;
 
+                case 'd':
+                    if (optind < argc)
+                    {
+                        options.m_dpu_name = argv[optind];
+                        optind++;
+                    }
+                    else
+                    {
+                        throw invalid_argument("dpu_name value option used but is missing.");
+                    }
+                    break;
+
                 default:
                    // argv contains unknown argument
                    throw invalid_argument("Unknown argument:" + string(argv[optind]));
@@ -248,7 +263,7 @@ int sonic_db_cli(
     int argc,
     char** argv,
     function<void()> initializeGlobalConfig,
-    function<void()> initializeConfig)
+    function<void(const string&)> initializeConfig)
 {
     Options options;
     try
@@ -275,16 +290,18 @@ int sonic_db_cli(
         return 0;
     }
 
+    // Need to reset SonicDBConfig to remove information from other database config files
+    SonicDBConfig::reset();
+
     if (!options.m_db_or_op.empty())
     {
         auto dbOrOperation = options.m_db_or_op;
         auto netns = options.m_namespace;
         bool useUnixSocket = options.m_unixsocket;
-        // Load the database config for the namespace
+
         if (!netns.empty())
         {
             initializeGlobalConfig();
-
             // Use the unix domain connectivity if namespace not empty.
             useUnixSocket = true;
         }
@@ -293,10 +310,7 @@ int sonic_db_cli(
         {
             auto commands = options.m_cmd;
 
-            if (netns.empty())
-            {
-                initializeConfig();
-            }
+            initializeConfig(options.m_dpu_name);
 
             return executeCommands(dbOrOperation, commands, netns, useUnixSocket);
         }
@@ -308,11 +322,9 @@ int sonic_db_cli(
             // sonic-db-cli catch all possible exceptions and handle it as a failure case which not return 'OK' or 'PONG'
             try
             {
-                if (netns.empty())
-                {
-                    // When database_config.json does not exist, sonic-db-cli will ignore exception and return 1.
-                    initializeConfig();
-                }
+
+                // When database_config.json does not exist, sonic-db-cli will ignore exception and return 1.
+                initializeConfig(options.m_dpu_name);
 
                 return handleAllInstances(netns, dbOrOperation, useUnixSocket);
             }
@@ -345,7 +357,7 @@ int cli_exception_wrapper(
     int argc,
     char** argv,
     function<void()> initializeGlobalConfig,
-    function<void()> initializeConfig)
+    function<void(const string&)> initializeConfig)
 {
     try
     {
