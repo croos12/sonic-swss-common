@@ -1,0 +1,15 @@
+[package]
+name = "sonic-db-cli"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+edition.workspace = true
+
+[dependencies]
+swss-common = { version = "0.1.0", path = "../swss-common" }
+
+[lints]
+workspace = true

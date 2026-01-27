@@ -1,6 +1,6 @@
 [workspace]
 resolver = '2'
-members = [
+members = ["crates/sonic-db-cli",
     "crates/swss-common",
     "crates/swss-common-testing",
 ]

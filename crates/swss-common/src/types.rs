@@ -4,7 +4,7 @@ mod async_util;
 mod configdbconnector;
 mod consumerstatetable;
 mod cxxstring;
-mod dbconnector;
+pub mod dbconnector;
 mod events;
 mod exception;
 mod logger;

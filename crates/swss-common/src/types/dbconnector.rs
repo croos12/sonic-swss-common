@@ -2,6 +2,10 @@ use super::*;
 use crate::bindings::*;
 use std::collections::HashMap;
 
+
+pub const DEFAULT_SONIC_DB_CONFIG_FILE: &str = "/var/run/redis/sonic-db/database_config.json";
+pub const DEFAULT_SONIC_DB_GLOBAL_CONFIG_FILE: &str = "/var/run/redis/sonic-db/database_global.json";
+
 /// Rust wrapper around `swss::DBConnector`.
 #[derive(Debug)]
 pub struct DbConnector {
